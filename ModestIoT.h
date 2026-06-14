@@ -10,7 +10,6 @@
 #include "CommandHandler.h"
 #include "Sensor.h"
 #include "Actuator.h"
-#include "Button.h"
 #include "Led.h"
 #include "Device.h"
 

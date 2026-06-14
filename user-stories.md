@@ -1,42 +1,37 @@
-# User Stories for ToggableLedDevice Example (C++ Edition)
+# User Stories for Cocina360 Device (C++ Edition)
 
-This document contains user stories for the `ToggableLedDevice-Example-Cpp` project, which demonstrates the `ModestIoT` (C++ Edition) Arduino library.
-The User Stories are defined for two personas: the Device User (interacting with the device) and the Device Maker (integrating the framework into the sketch).
-Each story includes acceptance criteria, using the **Given-When-Then** format where applicable.
+This document contains the user stories for the `Cocina360Device` project, focusing exclusively on the end-user personas who interact with the system's physical safety barriers and digital management features.
 
-## Device-User Stories
+## End-User Stories
 
-### US01: Toggle LED with Button
-- **As a** Device User, **I want** to press a button to toggle a LED between on and off states, **so that** I can physically control a simple IoT device.
+### US01: Real-Time Hierarchical Kitchen Alert System
+- **As a** Restaurant Owner, I want the device to continuously monitor temperature and gas levels and automatically deploy visual and acoustic safety barriers, so that my staff and kitchen assets are autonomously protected from fire hazards and gas leaks.
 - **Acceptance Criteria**:
-  - **Given** the device is powered on and the LED is initially off, **when** the Device User presses the button once, **then** the LED turns on.
-  - **Given** the device is powered on and the LED is on, **when** the Device User presses the button once, **then** the LED turns off.
-  - **Given** the device is powered on, **when** the Device User presses and holds the button, **then** the LED toggles only once per press (debouncing ensures no rapid toggling).
+  - **Given** the device is powered on and both gas and temperature measurements are within normal boundaries, when the system samples environmental data, then the Green LED remains `ON`, the Yellow/Red LEDs remain `OFF`, and the Buzzer remains silent (SAFE state).
+  - **Given** the ambient temperature crosses the Warning threshold ($35^\circ\text{C}$ default) OR the MQ-2 reading crosses the Gas Warning threshold ($1000\text{ PPM}$ default), when the state is evaluated, **then** the Yellow LED turns `ON`, the Green/Red LEDs turn `OFF`, and the system indicates a warning state.
+  - **Given** any sensor detects values exceeding the Critical threshold ($50^\circ\text{C}$ or $3000\text{ PPM}$), when the state is updated, **then** the Red LED turns `ON`, the Green/Yellow LEDs turn `OFF`, and the Buzzer asynchronously loops the emergency melody at 175 BPM (**CRITICAL DANGER** state).
 
-## Device-Maker Stories
-
-### US02: Monitor LED State
-- **As a** Device Maker, **I want** to see the LED's current state printed to the Serial Monitor, **so that** I can verify the device operates correctly during development and testing.
+### US02: Dynamic Cloud Synchronization of Safety Thresholds
+- **As a** Restaurant Owner, **I want** to modify my kitchen's maximum temperature and gas tolerance limits from a backend management portal, **so that** the hardware device automatically recalibrates itself in real time according to my business needs.
 - **Acceptance Criteria**:
-  - **Given** the device is powered on and connected to the Serial Monitor at 115200 baud, **when** the device starts, **then** the system prints "LED initial state: 0".
-  - **Given** the LED is off and the Serial Monitor is open, **when** the Device User presses the button to turn the LED on, **then** the system prints "LED state: 1".
-  - **Given** the LED is on and the Serial Monitor is open, **when** the Device User presses the button to turn the LED off, **then** the system prints "LED state: 0".
+  - **Given** the device is connected to the restaurant's Wi-Fi network, when the internal clock reaches the 60-second polling interval, **then** the device executes an asynchronous HTTP `GET` request to the cloud configuration endpoint.
+  - **Given** the cloud endpoint returns a valid JSON payload containing updated custom thresholds (such as `warnTemp`, `critTemp`, `warnGas`, and `critGas`), when the payload is processed, **then** the device overwrites its in-memory thresholds, immediately shifting the calibration matrix for the sensors.
+  - **Given** the cloud network is offline or rate-limited, when the polling executes, **then** the device gracefully falls back to its hardcoded local safety limits, ensuring continuous, uncompromised kitchen protection.
 
-### US03: Integrate Framework for Button and LED
-- **As a** Device Maker, **I want** to integrate the `ModestIoT` framework to handle button presses and LED control, **so that** I can build the device sketch with minimal low-level coding.
+### US03: Real-Time Visual Environmental Feedback
+- **As a** Kitchen Staff Member, **I want** a clear, immediate visual indication of the air quality and temperature status on the wall-mounted device, **so that** I can work safely without checking a computer screen or application dashboard.
 - **Acceptance Criteria**:
-  - **Given** the Device Maker includes `<ModestIoT.h>` in the sketch, **when** the Device Maker instantiates `ToggableLedDevice` with GPIO 26 (button) and GPIO 27 (LED), **then** the button triggers `BUTTON_PRESSED_EVENT` and the LED responds to `TOGGLE_LED_COMMAND` without additional hardware setup code.
-  - **Given** the Device Maker extends `Device` with `ToggableLedDevice`, **when** the Device User presses the button, **then** the LED toggles and the system logs the state to Serial using framework components.
-  - The sketch leverages `Button` and `Led` from the framework without the Device Maker reimplementing sensor or actuator logic.
+  - **Given** I am working in the kitchen, when I look at the device, **then** a solid Green light reassures me that the environment is completely safe.
+  - **Given** a minor gas leak occurs or ventilation fails, when the concentration rises above the warning threshold, **then** the immediate switch to a Yellow light alerts me to turn on the exhaust hoods.
+  - **Given** a fire or severe gas leak breaks out, when critical limits are breached, **then** the flashing Red light combined with the loud acoustic buzzer forces an immediate evacuation of the area.
 
-### US04: Use Interrupt-Driven Detection
-- **As a** Device Maker, **I want** to use an interrupt-driven approach to detect button presses, **so that** the device responds quickly and efficiently without polling in the main loop.
+### US04: Automated Cloud Telemetry Logging
+- **As a** Restaurant Owner, **I want** the device to automatically send regular status reports and danger alerts to my cloud platform, **so that** I can maintain a historical safety log of my business and receive remote notifications during emergencies.
 - **Acceptance Criteria**:
-  - **Given** the sketch attaches an interrupt to GPIO 26, **when** the Device User presses the button, **then** the LED toggles within a 200ms debounce period, without `loop()` polling the button state.
-  - **Given** no button press occurs, **when** the Device Maker inspects the `loop()` function, **then** it remains empty, relying on interrupts for responsiveness.
-  - The interrupt service routine (ISR) calls `triggerButtonEvent` to integrate with the framework.
+  - **Given** the device is running under normal conditions, when the internal 5-second transmission timer is reached, **then** the system packages the current temperature, PPM values, and status string into a JSON payload and transmits it via HTTP `POST`.
+  - **Given** a critical alert event is triggered by the hardware, when the threat level changes, **then** the device prioritizes sending an immediate payload update to the server to notify the manager.
 
 ---
 
-*Created: March 23, 2025.*
-*Last Updated: March 26, 2025*
+*Created: June 14, 2026*
+*Last Updated: June 14, 2026*

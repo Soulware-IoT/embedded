@@ -1,68 +1,65 @@
-# ToggableLedDevice Example (C++ Edition)
+# Cocina360 Device (C++ Edition)
 
-**Version**: 0.1  
-**Author**: Angel Velasquez  
-**Date**: March 23, 2025
-**Last Update** April 28, 2026
+**Version**: 1.0  
+**Authors**: IoT Solution Development Team  
+**Date**: June 14, 2026  
+**Framework Base**: Modest IoT Nano-framework v0.1  
 
 ## Overview
 
-This project demonstrates the usage of the Modest IoT Nano-framework (C++ Edition) v0.1 by implementing a simple IoT device: the `ToggableLedDevice`. It toggles an LED on an ESP32 via a button press, showcasing the framework’s object-oriented, event-driven, and CQRS-inspired design. This example is not part of the core framework but serves as a practical illustration of how to apply it.
+**Cocina360** is an automated risk mitigation and safety system engineered for commercial and industrial kitchens. This project implements the core orchestrator `Cocina360Device`, extending the object-oriented ecosystem, event-driven architecture, and Command Query Responsibility Segregation (CQRS) principles provided by the **Modest IoT Nano-framework**.
 
-The framework itself is maintained separately in [`Modest-IoT-Nano-framework-Cpp`](https://github.com/avelasquezn/Modest-IoT-Nano-framework-Cpp).
+The device performs asynchronous, non-blocking readings of ambient temperature and combustible gas/smoke concentration. In critical scenarios, it acts autonomously by deploying hardware safety barriers (traffic-light indicators and acoustic buzzer alarms with melodic patterns). Concurrently, it establishes bi-directional communication with cloud services (Beeceptor/Backend API) to report sensor telemetry via HTTP `POST` and dynamically synchronize user-defined safety thresholds via HTTP `GET`.
 
 ## Prerequisites
-- **Hardware**: ESP32 development board, a push button (active-low with pull-up), an LED with a 220Ω resistor.
-- **Software**: Arduino IDE with ESP32 support, or Wokwi for simulation.
-- **Dependency**: Modest IoT Nano-framework (C++ Edition) v0.1.
+
+### Hardware
+- **Microcontroller**: ESP32 Development Board.
+- **Temperature Sensor**: DHT11 environmental sensor.
+- **Gas Sensor**: MQ-2 flammable gas and smoke sensor.
+- **Visual Actuators**: 3 discrete Common Cathode LEDs (Red, Yellow, Green).
+- **Acoustic Actuator**: Passive Buzzer.
+- **Protection**: Appropriate current-limiting resistors (220Ω).
+
+### Software & Environment
+- **IDE**: Arduino IDE (v2.0+ recommended) with the ESP32 board support package installed.
+
+### Dependencies
+- Adafruit `DHT sensor library`.
+- `ArduinoJson` library (v6.x or v7.x).
 
 ## Features
-- **Button Control**: Pressing the button toggles the LED state.
-- **Event-Driven**: Utilizes event handlers to manage button presses and LED state changes.
-- **Modular Design**: Demonstrates the use of sensors, actuators, and devices in a structured manner.   
-- **CQRS Pattern**: Separates command handling (button press) from event handling (LED state change).
-- **Simulation Support**: Can be run on Wokwi for easy testing and demonstration.
-- **Documentation**: Includes user stories and a system diagram for clarity.
 
-## User Stories
-See [user-stories.md](user-stories.md) for detailed user stories that guided the development of this example.
+- **Non-Blocking Concurrent Monitoring**: Evaluation of critical environmental variables through synchronous sampling windows managed with `millis()`, entirely avoiding blocking atomic instructions (`delay`).
+- **Hierarchical Traffic-Light Logic**:
+  - **SAFE State (Green LED)**: Stable gas and temperature thresholds.
+  - **WARNING State (Yellow LED)**: Noticeable gas concentrations or moderate thermal increases. Prompts preventive ventilation.
+  - **CRITICAL DANGER State (Red LED + Alarm)**: Maximum safety limits exceeded. Asynchronously triggers the *Star Power Theme* alert melody at 175 BPM.
+- **Real Logarithmic Approximation (PPM)**: Built-in mathematical translation algorithm to linearize raw analog ADC data from the MQ-2 sensor into precise Parts Per Million (PPM) concentration curves, protecting the runtime against division-by-zero or numeric overflows.
+- **Dynamic Cloud Synchronization**: Integrated HTTP client executing background `GET` polling requests to update operating thresholds according to restaurant needs, guaranteeing system fault tolerance through an automated local fallback mode.
+- **Structured Telemetry Dispatching**: Periodic, managed delivery of structured JSON payloads via HTTP `POST` containing the unique device identifier, exact temperature, calculated PPM volume, and literal alert string status.
 
 ## Class Diagram
-The following diagram illustrates the relationships between the nano-framework and the main classes in this example:
 
-![Class Diagram](https://www.plantuml.com/plantuml/proxy?src=https://raw.githubusercontent.com/upc-pre-202610-1asi0572-sandbox/toggable-led-device-cpp/refs/heads/master/class-diagram.puml?token=GHSAT0AAAAAADVFVJLAI33WPS3XU4IONLMS2PQZDNA)
+The system architecture decouples logic from monolithic structures into an event-driven design:
 
-The class diagram can be found in [class-diagram.puml](class-diagram.puml).
-
-
-## Installation
-1. **Download Framework**: Clone or download [`Modest-IoT-Nano-framework-Cpp`](https://github.com/avelasquezn/Modest-IoT-Nano-framework-Cpp).
-2. **Download Example**: Clone or download this repository from [avelasquezn/ToggableLedDevice-Example-Cpp](https://github.com/avelasquezn/ToggableLedDevice-Example-Cpp).
-3. **Directory Structure**: Combine files (assuming both repos are siblings):
-```planetext
-ToggableLedDevice-Example-Cpp/
-├── ToggableLedDevice.ino
-├── ToggableLedDevice.h
-├── ToggableLedDevice.cpp
-├── diagram.json
-├── wokwi.project.txt
-├── user-stories.md
-├── class-diagram.puml
-├── sketch.ino
-├── (copied from Modest-IoT-Nano-framework-Cpp)
-│   ├── ModestIoT.h
-│   ├── EventHandler.h
-│   ├── CommandHandler.h
-│   ├── Sensor.h
-│   ├── Sensor.cpp
-│   ├── Button.h
-│   ├── Button.cpp
-│   ├── Actuator.h
-│   ├── Actuator.cpp
-│   ├── Led.h
-│   ├── Led.cpp
-│   ├── Device.h
-│   └── Device.cpp
-````
-# embedded
-# sketch
+```text
+               +--------------------+
+               |       Device       |
+               +--------------------+
+                         ^
+                         |
+               +--------------------+
+               |  Cocina360Device   |
+               +--------------------+
+              /          |           \
+             v           v            v
+    +---------+     +---------+     +---------+
+    |  Sensor |     |Actuator |     |   Led   |
+    +---------+     +---------+     +---------+
+     /       \           |           (Red, Yellow,
+    v         v          v            Green)
++-------+ +-------+ +---------+
+| Dht11 | |  Mq2  | |  Buzzer |
++-------+ +-------+ +---------+
+```
