@@ -29,9 +29,11 @@ private:
 
     const char* ssid = "prd29gat";
     const char* password = "alltomorrows2004";
-    const String deviceId = "ESP32_COCINA_01"; 
-    const String urlConfigGet = "https://cocina360-api.free.beeceptor.com/api/config/" + deviceId;
-    const String urlTelemetryPost = "https://cocina360-api.free.beeceptor.com/api/telemetria";
+    const String deviceId = "fa06c2f3-35e8-401c-a47e-6a0876ddc180"; 
+    const String deviceApiKey = "c893da9dc96904026fb6aaa5f7f82bfebd7e7802f228b99e6315722244a7c728"; 
+    const String edgeServerIp = "http://192.168.55.196:5000";
+    const String urlConfigGet = edgeServerIp + "/api/v1/config/" + deviceId;
+    const String urlTelemetryPost = edgeServerIp + "/api/v1/readings";
 
     unsigned long lastFetchTime;
     const unsigned long FETCH_INTERVAL_MS = 10000;

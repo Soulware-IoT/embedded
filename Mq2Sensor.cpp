@@ -21,10 +21,19 @@ void Mq2Sensor::update() {
         lastReadTime = now;
         
         int adc = analogRead(pin);
+        
+        if (adc < 10) adc = 10; 
+
         if (adc != lastADC) {
-            if (adc == 0) adc = 1;
             float vout = adc * (VCC / 4095.0);
+
+            if (vout >= (VCC - 0.05)) {
+                vout = VCC - 0.05; 
+            }
+            if (vout <= 0.05) vout = 0.05;
+
             float Rs = RL * (VCC - vout) / vout;
+            
             lastPPM = 2.79 * pow(Rs, -2.41);
             lastADC = adc;
         }

@@ -46,6 +46,8 @@ void Cocina360Device::fetchRemoteThresholds() {
 
     HTTPClient http;
     http.begin(urlConfigGet);
+    http.addHeader("X-API-Key", deviceApiKey); 
+    
     int httpResponseCode = http.GET();
 
     if (httpResponseCode == 200) {
@@ -54,14 +56,14 @@ void Cocina360Device::fetchRemoteThresholds() {
         DeserializationError error = deserializeJson(doc, payload);
 
         if (!error) {
-            warnTemperatureC = doc["warnTemp"] | warnTemperatureC;
-            critTemperatureC = doc["critTemp"] | critTemperatureC;
-            warnGasPpm = doc["warnGas"] | warnGasPpm;
-            critGasPPM = doc["critGas"] | critGasPPM;
-            Serial.println("[HTTP] Umbrales actualizados desde el backend.");
+            warnTemperatureC = doc["warnTemperatureC"] | warnTemperatureC;
+            critTemperatureC = doc["critTemperatureC"] | critTemperatureC;
+            warnGasPpm = doc["warnGasPpm"] | warnGasPpm;
+            critGasPPM = doc["critGasPpm"] | critGasPPM;
+            Serial.println("[HTTP] Umbrales sincronizados con éxito desde el Edge v1.");
         }
     } else {
-        Serial.printf("[HTTP] Error al obtener configuración: %d\n", httpResponseCode);
+        Serial.printf("[HTTP] Error de sincronización v1. Código: %d\n", httpResponseCode);
     }
     http.end();
 }
@@ -72,18 +74,24 @@ void Cocina360Device::sendTelemetry(int temp, float ppm, String status) {
     HTTPClient http;
     http.begin(urlTelemetryPost);
     http.addHeader("Content-Type", "application/json");
+    
+    http.addHeader("X-API-Key", deviceApiKey); 
 
-    StaticJsonDocument<256> doc;
-    doc["deviceId"] = deviceId;
-    doc["temperatura"] = temp;
-    doc["ppm"] = ppm;
-    doc["estado"] = status;
+    StaticJsonDocument<128> doc;
+    doc["temperature_c"] = temp;
+    doc["gas_ppm"] = ppm;
 
     String jsonString;
     serializeJson(doc, jsonString);
 
     int httpResponseCode = http.POST(jsonString);
-    Serial.printf("[HTTP] Envío de telemetría. Respuesta HTTP: %d\n", httpResponseCode);
+    
+    if (httpResponseCode == 202) {
+        Serial.println("[HTTP] Telemetría aceptada por el Edge (202 ACCEPTED).");
+    } else {
+        Serial.printf("[HTTP] Error en envío de telemetría. Código: %d\n", httpResponseCode);
+    }
+    
     http.end();
 }
 
