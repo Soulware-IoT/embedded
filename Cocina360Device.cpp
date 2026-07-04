@@ -4,7 +4,8 @@
 Cocina360Device* globalDeviceInstance = nullptr;
 
 Cocina360Device::Cocina360Device() 
-    : dhtSensor(PIN_DHT, this), 
+    : mqttClient(espClient),
+      dhtSensor(PIN_DHT, this), 
       gasSensor(PIN_MQ2, this), 
       redLed(PIN_RED, false, this), 
       yellowLed(PIN_YELLOW, false, this), 
@@ -18,6 +19,8 @@ Cocina360Device::Cocina360Device()
 }
 
 void Cocina360Device::begin() {
+    commandTopic = "cocina360/" + deviceId + "/command"; 
+
     dhtSensor.begin();
     connectWiFi();
     mqttClient.setServer(mqttServer, mqttPort);
@@ -52,7 +55,9 @@ void Cocina360Device::reconnectMQTT() {
         Serial.print("[MQTT] Intentando conectar al Broker Mosquitto...");
         if (mqttClient.connect(deviceId.c_str())) {
             Serial.println("¡Conectado con éxito!");
-            mqttClient.subscribe(commandTopic);
+            
+            mqttClient.subscribe(commandTopic.c_str()); 
+            
         } else {
             Serial.printf("Falló, código de estado=%d. Se reintentará en el próximo ciclo.\n", mqttClient.state());
         }
@@ -65,8 +70,26 @@ void Cocina360Device::mqttCallback(char* topic, byte* payload, unsigned int leng
         message += (char)payload[i];
     }
     
-    Serial.printf("[MQTT] Comando recibido en [%s]: %s\n", topic, message.c_str());
+    // =======================================================================
+    // 🟢 LOGS DE DEPURACIÓN AVANZADA
+    // =======================================================================
+    Serial.println("\n--- [DEBUG MQTT INCOMING] ---");
+    Serial.printf("Tópico de origen : [%s]\n", topic);
+    Serial.printf("Longitud del msg : %u bytes\n", length);
+    Serial.printf("Texto del mensaje: \"%s\"\n", message.c_str());
+    
+    // Limpiamos posibles espacios en blanco o saltos de línea invisibles (\r\n)
+    message.trim(); 
+    
+    // Imprimimos una prueba de lógica explícita
+    if (message == "TOGGLE") {
+        Serial.println("[DEBUG] -> ¡ÉXITO! El mensaje calza perfectamente con 'TOGGLE'.");
+    } else {
+        Serial.printf("[DEBUG] -> ALERTA: El mensaje recibido es '%s', pero se esperaba 'TOGGLE'.\n", message.c_str());
+    }
+    Serial.println("-----------------------------\n");
 
+    // Lógica original de ejecución
     if (message == "TOGGLE" && globalDeviceInstance != nullptr) {
         globalDeviceInstance->handle(ServoActuator::TOGGLE_SERVO_COMMAND);
     }
@@ -177,6 +200,8 @@ void Cocina360Device::update() {
     gasSensor.update();
     buzzer.update();
 
+    servoDisipador.update();
+    
     evaluateGlobalState();
 
     unsigned long now = millis();

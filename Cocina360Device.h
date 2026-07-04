@@ -14,6 +14,9 @@
 
 class Cocina360Device : public Device {
 private:
+    WiFiClient espClient;
+    PubSubClient mqttClient;
+
     Dht11Sensor dhtSensor;
     Mq2Sensor gasSensor;
     Led redLed;
@@ -31,17 +34,16 @@ private:
 
     const char* ssid = "prd29gat";
     const char* password = "alltomorrows2004";
-    const String deviceId = "fa06c2f3-35e8-401c-a47e-6a0876ddc180"; 
+    const String deviceId = "23f8d970-40a2-49c8-8aa7-d05034199ff7"; 
     const String deviceApiKey = "c893da9dc96904026fb6aaa5f7f82bfebd7e7802f228b99e6315722244a7c728"; 
-    const String edgeServerIp = "http://192.168.55.196:5000";
+    const String edgeServerIp = "http://192.168.247.196:5000";
     const String urlConfigGet = edgeServerIp + "/api/v1/config/" + deviceId;
     const String urlTelemetryPost = edgeServerIp + "/api/v1/readings";
 
     //Mosquitto
-    const char* mqttServer = "192.168.55.196";
+    const char* mqttServer = "192.168.247.196";
     const int mqttPort = 1883;
-    String commandTopic = "cocina360/" + deviceId + "/command";
-    
+    String commandTopic;
     unsigned long lastFetchTime;
     const unsigned long FETCH_INTERVAL_MS = 10000;
 
