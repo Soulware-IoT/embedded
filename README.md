@@ -1,68 +1,136 @@
-# ToggableLedDevice Example (C++ Edition)
+# Cocina360 Device (C++ Edition)
 
-**Version**: 0.1  
-**Author**: Angel Velasquez  
-**Date**: March 23, 2025
-**Last Update** April 28, 2026
+**Version**: 1.0  
+**Authors**: IoT Solution Development Team  
+**Date**: July 9, 2026  
+**Framework Base**: Modest IoT Nano-framework v0.1  
 
 ## Overview
 
-This project demonstrates the usage of the Modest IoT Nano-framework (C++ Edition) v0.1 by implementing a simple IoT device: the `ToggableLedDevice`. It toggles an LED on an ESP32 via a button press, showcasing the framework’s object-oriented, event-driven, and CQRS-inspired design. This example is not part of the core framework but serves as a practical illustration of how to apply it.
+**Cocina360** is an automated risk mitigation and safety system engineered for commercial and industrial kitchens. This project implements the core orchestrator `Cocina360Device`, extending the object-oriented ecosystem, event-driven architecture, and Command Query Responsibility Segregation (CQRS) principles provided by the **Modest IoT Nano-framework**.
 
-The framework itself is maintained separately in [`Modest-IoT-Nano-framework-Cpp`](https://github.com/avelasquezn/Modest-IoT-Nano-framework-Cpp).
+The device performs asynchronous, non-blocking readings of ambient temperature and combustible gas/smoke concentration. In critical scenarios, it acts autonomously by deploying hardware safety barriers (traffic-light indicators, acoustic buzzer alarms with melodic patterns, and a servo-driven heat dissipator). Concurrently, it establishes bi-directional communication with cloud services: reporting sensor telemetry via HTTP `POST` and synchronizing user-defined safety thresholds via HTTP `GET` against the backend API, and receiving remote actuator commands in real time over MQTT.
+
+## Purpose
+
+Beyond its safety function, `Cocina360Device` is built as a practical demonstration of the Modest IoT Nano-framework's event-driven, CQRS-inspired design applied to real embedded hardware. It illustrates:
+- **Encapsulation**: Sensor sampling state and actuator hardware details are bundled within their own classes (e.g., `Mq2Sensor`, `Buzzer`), hidden behind a small public interface.
+- **Inheritance**: Concrete sensors and actuators (`Dht11Sensor`, `Mq2Sensor`, `Led`, `Buzzer`, `ServoActuator`) extend the framework's abstract `Sensor` and `Actuator` base classes.
+- **Polymorphism**: Overridden `on(Event)` and `handle(Command)` methods let `Cocina360Device` react uniformly to events and commands regardless of which concrete sensor or actuator raised them.
+- **Abstraction**: The `Device`, `EventHandler`, and `CommandHandler` interfaces decouple the orchestrator from the specifics of any single sensor or actuator implementation, whether the command originates locally or over MQTT.
 
 ## Prerequisites
-- **Hardware**: ESP32 development board, a push button (active-low with pull-up), an LED with a 220Ω resistor.
-- **Software**: Arduino IDE with ESP32 support, or Wokwi for simulation.
-- **Dependency**: Modest IoT Nano-framework (C++ Edition) v0.1.
+
+### Hardware
+- **Microcontroller**: ESP32 Development Board.
+- **Temperature Sensor**: DHT11 environmental sensor.
+- **Gas Sensor**: MQ-2 flammable gas and smoke sensor.
+- **Visual Actuators**: 3 discrete Common Cathode LEDs (Red, Yellow, Green).
+- **Acoustic Actuator**: Passive Buzzer.
+- **Heat Dissipator**: SG90 (or compatible) servo motor.
+- **Protection**: Appropriate current-limiting resistors (220Ω).
+
+### Software & Environment
+- **IDE**: Arduino IDE (v2.0+ recommended) with the ESP32 board support package installed.
+- **MQTT Broker**: A reachable Mosquitto (or other MQTT 3.1.1-compatible) broker, used to deliver remote actuator commands to the device.
+
+### Dependencies
+- Adafruit `DHT sensor library`.
+- `ArduinoJson` library (v6.x or v7.x).
+- `ESP32Servo` library.
+- `PubSubClient` library.
 
 ## Features
-- **Button Control**: Pressing the button toggles the LED state.
-- **Event-Driven**: Utilizes event handlers to manage button presses and LED state changes.
-- **Modular Design**: Demonstrates the use of sensors, actuators, and devices in a structured manner.   
-- **CQRS Pattern**: Separates command handling (button press) from event handling (LED state change).
-- **Simulation Support**: Can be run on Wokwi for easy testing and demonstration.
-- **Documentation**: Includes user stories and a system diagram for clarity.
 
-## User Stories
-See [user-stories.md](user-stories.md) for detailed user stories that guided the development of this example.
+- **Non-Blocking Concurrent Monitoring**: Evaluation of critical environmental variables through synchronous sampling windows managed with `millis()`, entirely avoiding blocking atomic instructions (`delay`).
+- **Hierarchical Traffic-Light Logic**:
+  - **SAFE State (Green LED)**: Stable gas and temperature thresholds.
+  - **WARNING State (Yellow LED)**: Noticeable gas concentrations or moderate thermal increases. Prompts preventive ventilation.
+  - **CRITICAL DANGER State (Red LED + Alarm)**: Maximum safety limits exceeded. Asynchronously triggers the *Star Power Theme* alert melody at 175 BPM.
+- **Real Logarithmic Approximation (PPM)**: Built-in mathematical translation algorithm to linearize raw analog ADC data from the MQ-2 sensor into precise Parts Per Million (PPM) concentration curves, protecting the runtime against division-by-zero or numeric overflows.
+- **Dynamic Cloud Synchronization**: Integrated HTTP client executing background `GET` polling requests to update operating thresholds according to restaurant needs, guaranteeing system fault tolerance through an automated local fallback mode.
+- **Structured Telemetry Dispatching**: Periodic, managed delivery of structured JSON payloads via HTTP `POST` containing the unique device identifier, exact temperature, calculated PPM volume, and literal alert string status.
+- **MQTT Remote Command Channel**: The device subscribes to a per-device topic (`cocina360/<deviceId>/command`) on a Mosquitto broker and reacts to incoming commands in its non-blocking main loop, auto-reconnecting to WiFi/broker if the connection drops.
+- **Servo-Driven Heat Dissipator**: A `ServoActuator` toggled remotely over MQTT (`TOGGLE` command) performs a continuous, non-blocking 0°–180° sweep to actively dissipate heat, with a 1-second debounce guard and automatic return to the 0° rest position when switched off.
 
 ## Class Diagram
-The following diagram illustrates the relationships between the nano-framework and the main classes in this example:
 
-![Class Diagram](https://www.plantuml.com/plantuml/proxy?src=https://raw.githubusercontent.com/upc-pre-202610-1asi0572-sandbox/toggable-led-device-cpp/refs/heads/master/class-diagram.puml?token=GHSAT0AAAAAADVFVJLAI33WPS3XU4IONLMS2PQZDNA)
+The system architecture decouples logic from monolithic structures into an event-driven design:
 
-The class diagram can be found in [class-diagram.puml](class-diagram.puml).
+```text
+               +--------------------+
+               |       Device       |
+               +--------------------+
+                         ^
+                         |
+               +--------------------+
+               |  Cocina360Device   |
+               +--------------------+
+              /          |            \
+             v           v             v
+    +---------+     +---------+     +---------+
+    |  Sensor |     |Actuator |     |   Led   |
+    +---------+     +---------+     +---------+
+     /       \       /   |    \      (Red, Yellow,
+    v         v     v    v     v      Green)
++-------+ +-------+ +-------+ +-------+ +---------------+
+| Dht11 | |  Mq2  | |Buzzer | |  Led  | | ServoActuator |
++-------+ +-------+ +-------+ +-------+ +---------------+
+```
 
+For the complete UML diagram, including attributes, methods, and relationships for every class in the framework and the project, see [docs/class-diagram.md](docs/class-diagram.md).
+
+For the end-user personas and Given-When-Then acceptance criteria behind this design, see [docs/user-stories.md](docs/user-stories.md).
 
 ## Installation
-1. **Download Framework**: Clone or download [`Modest-IoT-Nano-framework-Cpp`](https://github.com/avelasquezn/Modest-IoT-Nano-framework-Cpp).
-2. **Download Example**: Clone or download this repository from [avelasquezn/ToggableLedDevice-Example-Cpp](https://github.com/avelasquezn/ToggableLedDevice-Example-Cpp).
-3. **Directory Structure**: Combine files (assuming both repos are siblings):
-```planetext
-ToggableLedDevice-Example-Cpp/
-├── ToggableLedDevice.ino
-├── ToggableLedDevice.h
-├── ToggableLedDevice.cpp
-├── diagram.json
-├── wokwi.project.txt
-├── user-stories.md
-├── class-diagram.puml
-├── sketch.ino
-├── (copied from Modest-IoT-Nano-framework-Cpp)
-│   ├── ModestIoT.h
-│   ├── EventHandler.h
-│   ├── CommandHandler.h
-│   ├── Sensor.h
-│   ├── Sensor.cpp
-│   ├── Button.h
-│   ├── Button.cpp
-│   ├── Actuator.h
-│   ├── Actuator.cpp
-│   ├── Led.h
-│   ├── Led.cpp
-│   ├── Device.h
-│   └── Device.cpp
-````
-# embedded
-# sketch
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/<your-username>/embedded.git
+   cd embedded
+   ```
+2. **Install the Arduino IDE**: Version 2.0+ recommended, with the ESP32 board support package installed via `File > Preferences > Additional Board Manager URLs` and `Tools > Board > Boards Manager`.
+3. **Install Library Dependencies** via `Tools > Manage Libraries...`:
+   ```text
+   Adafruit DHT sensor library
+   ArduinoJson (v6.x or v7.x)
+   ESP32Servo
+   PubSubClient
+   ```
+4. **Open the Sketch**: Open `sketch.ino` in the Arduino IDE; the accompanying `.h`/`.cpp` files load automatically as part of the same sketch.
+5. **Configure Credentials**: Update the `ssid`, `password`, `deviceId`, `deviceApiKey`, and `edgeServerIp` fields in `Cocina360Device.h` to match your WiFi network and backend deployment.
+6. **Configure the MQTT Broker**: Update `mqttServer` and `mqttPort` in `Cocina360Device.h` to point at your Mosquitto (or other MQTT) broker. The device auto-subscribes to `cocina360/<deviceId>/command` on connect.
+7. **Select Board and Port**: Choose your ESP32 board under `Tools > Board` and the correct serial port under `Tools > Port`.
+8. **Upload**:
+   ```text
+   Sketch > Upload
+   ```
+
+## Usage
+
+Wire the hardware as described in [Prerequisites](#prerequisites), upload the sketch, then open the Serial Monitor (115200 baud) to observe the device connecting to WiFi and the MQTT broker, synchronizing thresholds, and reporting its safety state on every sampling cycle.
+
+To remotely toggle the servo-driven heat dissipator, publish the payload `TOGGLE` to the device's command topic, `cocina360/<deviceId>/command`, e.g.:
+```bash
+mosquitto_pub -h <broker-host> -t "cocina360/23f8d970-40a2-49c8-8aa7-d05034199ff7/command" -m "TOGGLE"
+```
+
+### Example Output
+```plaintext
+[WIFI] Conectando a prd29gat
+....
+[WIFI] ¡Conectado con éxito!
+[MQTT] Intentando conectar al Broker Mosquitto...¡Conectado con éxito!
+[HTTP] Umbrales sincronizados con éxito desde el Edge v1.
+=================================
+Temperatura: 28 °C
+Gas: 412.35 PPM
+Estado: SEGURO
+[HTTP] Telemetría aceptada por el Edge (202 ACCEPTED).
+=================================
+Temperatura: 36 °C
+Gas: 1120.80 PPM
+Estado: ADVERTENCIA / VENTILAR
+[HTTP] Telemetría aceptada por el Edge (202 ACCEPTED).
+[ACTUADOR] Servo ACTIVADO (Barrido continuo)
+```
