@@ -1,3 +1,23 @@
+/**
+ * @file Cocina360Device.cpp
+ * @brief Implements the Cocina360Device class.
+ *
+ * Wires together the sensors, LEDs, and buzzer into the hierarchical traffic-light safety logic,
+ * and manages WiFi connectivity, threshold synchronization, and telemetry reporting against the
+ * backend edge server.
+ *
+ * @author IoT Solution Development Team
+ * @date June 14, 2026
+ * @version 1.0
+ */
+
+/*
+ * This file is part of the Cocina360 Device (C++ Edition) project.
+ * Copyright (c) 2026 IoT Solution Development Team
+ *
+ * Licensed under the MIT License. See LICENSE.md for details.
+ */
+
 #include "Cocina360Device.h"
 #include <Arduino.h>
 
