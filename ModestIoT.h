@@ -17,5 +17,6 @@
 #include "Dht11Sensor.h"
 #include "Mq2Sensor.h"
 #include "Cocina360Device.h"
+#include "ServoActuator.h"
 
 #endif
