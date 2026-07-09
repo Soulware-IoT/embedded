@@ -21,13 +21,17 @@
 #include "Cocina360Device.h"
 #include <Arduino.h>
 
+Cocina360Device* globalDeviceInstance = nullptr;
+
 Cocina360Device::Cocina360Device() 
-    : dhtSensor(PIN_DHT, this), 
+    : mqttClient(espClient),
+      dhtSensor(PIN_DHT, this), 
       gasSensor(PIN_MQ2, this), 
       redLed(PIN_RED, false, this), 
       yellowLed(PIN_YELLOW, false, this), 
       greenLed(PIN_GREEN, true, this), 
       buzzer(PIN_BUZZER, this),
+      servoDisipador(PIN_SERVO, this),
       tempSeverity(0), gasSeverity(0),
       warnTemperatureC(35), critTemperatureC(50), 
       warnGasPpm(1000.0), critGasPPM(3000.0),
@@ -35,8 +39,13 @@ Cocina360Device::Cocina360Device()
 }
 
 void Cocina360Device::begin() {
+    commandTopic = "cocina360/" + deviceId + "/command"; 
+
     dhtSensor.begin();
     connectWiFi();
+    mqttClient.setServer(mqttServer, mqttPort);
+    mqttClient.setCallback(mqttCallback);
+    reconnectMQTT();
     fetchRemoteThresholds();
 }
 
@@ -58,6 +67,51 @@ void Cocina360Device::connectWiFi() {
         Serial.println("\n[WIFI] ¡Conectado con éxito!");
     } else {
         Serial.println("\n[WIFI] No se pudo conectar. El sistema operará en MODO LOCAL.");
+    }
+}
+
+void Cocina360Device::reconnectMQTT() {
+    if (WiFi.status() == WL_CONNECTED && !mqttClient.connected()) {
+        Serial.print("[MQTT] Intentando conectar al Broker Mosquitto...");
+        if (mqttClient.connect(deviceId.c_str())) {
+            Serial.println("¡Conectado con éxito!");
+            
+            mqttClient.subscribe(commandTopic.c_str()); 
+            
+        } else {
+            Serial.printf("Falló, código de estado=%d. Se reintentará en el próximo ciclo.\n", mqttClient.state());
+        }
+    }
+}
+
+void Cocina360Device::mqttCallback(char* topic, byte* payload, unsigned int length) {
+    String message = "";
+    for (unsigned int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+    
+    // =======================================================================
+    // 🟢 LOGS DE DEPURACIÓN AVANZADA
+    // =======================================================================
+    Serial.println("\n--- [DEBUG MQTT INCOMING] ---");
+    Serial.printf("Tópico de origen : [%s]\n", topic);
+    Serial.printf("Longitud del msg : %u bytes\n", length);
+    Serial.printf("Texto del mensaje: \"%s\"\n", message.c_str());
+    
+    // Limpiamos posibles espacios en blanco o saltos de línea invisibles (\r\n)
+    message.trim(); 
+    
+    // Imprimimos una prueba de lógica explícita
+    if (message == "TOGGLE") {
+        Serial.println("[DEBUG] -> ¡ÉXITO! El mensaje calza perfectamente con 'TOGGLE'.");
+    } else {
+        Serial.printf("[DEBUG] -> ALERTA: El mensaje recibido es '%s', pero se esperaba 'TOGGLE'.\n", message.c_str());
+    }
+    Serial.println("-----------------------------\n");
+
+    // Lógica original de ejecución
+    if (message == "TOGGLE" && globalDeviceInstance != nullptr) {
+        globalDeviceInstance->handle(ServoActuator::TOGGLE_SERVO_COMMAND);
     }
 }
 
@@ -151,10 +205,23 @@ void Cocina360Device::evaluateGlobalState() {
 }
 
 void Cocina360Device::update() {
+    
+    if (!mqttClient.connected()) {
+        static unsigned long lastMqttRetry = 0;
+        if (millis() - lastMqttRetry >= 5000) {
+            lastMqttRetry = millis();
+            reconnectMQTT();
+        }
+    } else {
+        mqttClient.loop();
+    }
+
     dhtSensor.update();
     gasSensor.update();
     buzzer.update();
 
+    servoDisipador.update();
+    
     evaluateGlobalState();
 
     unsigned long now = millis();
@@ -188,4 +255,8 @@ void Cocina360Device::on(Event event) {
     else if (event == Mq2Sensor::GAS_NORMAL_EVENT) gasSeverity = 0;
 }
 
-void Cocina360Device::handle(Command command) {}
+void Cocina360Device::handle(Command command) {
+    if (command == ServoActuator::TOGGLE_SERVO_COMMAND) {
+        servoDisipador.handle(command);
+    }
+}
