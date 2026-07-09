@@ -1,3 +1,22 @@
+/**
+ * @file Dht11Sensor.cpp
+ * @brief Implements the Dht11Sensor class.
+ *
+ * Samples the DHT11 module on a 2-second non-blocking window and notifies the assigned handler
+ * whenever the resulting temperature severity level changes.
+ *
+ * @author IoT Solution Development Team
+ * @date June 14, 2026
+ * @version 1.0
+ */
+
+/*
+ * This file is part of the Cocina360 Device (C++ Edition) project.
+ * Copyright (c) 2026 IoT Solution Development Team
+ *
+ * Licensed under the MIT License. See LICENSE.md for details.
+ */
+
 #include "Dht11Sensor.h"
 #include "Cocina360Device.h"
 

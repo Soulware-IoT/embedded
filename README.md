@@ -11,6 +11,14 @@
 
 The device performs asynchronous, non-blocking readings of ambient temperature and combustible gas/smoke concentration. In critical scenarios, it acts autonomously by deploying hardware safety barriers (traffic-light indicators and acoustic buzzer alarms with melodic patterns). Concurrently, it establishes bi-directional communication with cloud services (Beeceptor/Backend API) to report sensor telemetry via HTTP `POST` and dynamically synchronize user-defined safety thresholds via HTTP `GET`.
 
+## Purpose
+
+Beyond its safety function, `Cocina360Device` is built as a practical demonstration of the Modest IoT Nano-framework's event-driven, CQRS-inspired design applied to real embedded hardware. It illustrates:
+- **Encapsulation**: Sensor sampling state and actuator hardware details are bundled within their own classes (e.g., `Mq2Sensor`, `Buzzer`), hidden behind a small public interface.
+- **Inheritance**: Concrete sensors and actuators (`Dht11Sensor`, `Mq2Sensor`, `Led`, `Buzzer`) extend the framework's abstract `Sensor` and `Actuator` base classes.
+- **Polymorphism**: Overridden `on(Event)` and `handle(Command)` methods let `Cocina360Device` react uniformly to events and commands regardless of which concrete sensor or actuator raised them.
+- **Abstraction**: The `Device`, `EventHandler`, and `CommandHandler` interfaces decouple the orchestrator from the specifics of any single sensor or actuator implementation.
+
 ## Prerequisites
 
 ### Hardware
@@ -62,4 +70,51 @@ The system architecture decouples logic from monolithic structures into an event
 +-------+ +-------+ +---------+
 | Dht11 | |  Mq2  | |  Buzzer |
 +-------+ +-------+ +---------+
+```
+
+For the complete UML diagram, including attributes, methods, and relationships for every class in the framework and the project, see [docs/class-diagram.md](docs/class-diagram.md).
+
+For the end-user personas and Given-When-Then acceptance criteria behind this design, see [docs/user-stories.md](docs/user-stories.md).
+
+## Installation
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/<your-username>/embedded.git
+   cd embedded
+   ```
+2. **Install the Arduino IDE**: Version 2.0+ recommended, with the ESP32 board support package installed via `File > Preferences > Additional Board Manager URLs` and `Tools > Board > Boards Manager`.
+3. **Install Library Dependencies** via `Tools > Manage Libraries...`:
+   ```text
+   Adafruit DHT sensor library
+   ArduinoJson (v6.x or v7.x)
+   ```
+4. **Open the Sketch**: Open `sketch.ino` in the Arduino IDE; the accompanying `.h`/`.cpp` files load automatically as part of the same sketch.
+5. **Configure Credentials**: Update the `ssid`, `password`, `deviceId`, `deviceApiKey`, and `edgeServerIp` fields in `Cocina360Device.h` to match your WiFi network and backend deployment.
+6. **Select Board and Port**: Choose your ESP32 board under `Tools > Board` and the correct serial port under `Tools > Port`.
+7. **Upload**:
+   ```text
+   Sketch > Upload
+   ```
+
+## Usage
+
+Wire the hardware as described in [Prerequisites](#prerequisites), upload the sketch, then open the Serial Monitor (115200 baud) to observe the device connecting to WiFi, synchronizing thresholds, and reporting its safety state on every sampling cycle.
+
+### Example Output
+```plaintext
+[WIFI] Conectando a prd29gat
+....
+[WIFI] ¡Conectado con éxito!
+[HTTP] Umbrales sincronizados con éxito desde el Edge v1.
+=================================
+Temperatura: 28 °C
+Gas: 412.35 PPM
+Estado: SEGURO
+[HTTP] Telemetría aceptada por el Edge (202 ACCEPTED).
+=================================
+Temperatura: 36 °C
+Gas: 1120.80 PPM
+Estado: ADVERTENCIA / VENTILAR
+[HTTP] Telemetría aceptada por el Edge (202 ACCEPTED).
 ```
