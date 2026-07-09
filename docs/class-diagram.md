@@ -1,4 +1,4 @@
-The following PlantUML diagram illustrates the classes of the Cocina360 Device (C++ Edition), spanning both the Modest IoT Nano-framework core (`Command`, `Event`, `CommandHandler`, `EventHandler`, `Device`, `Sensor`, `Actuator`) and the project-specific classes (`Dht11Sensor`, `Mq2Sensor`, `Led`, `Buzzer`, `Cocina360Device`), along with their attributes, methods, and relationships.
+The following PlantUML diagram illustrates the classes of the Cocina360 Device (C++ Edition), spanning both the Modest IoT Nano-framework core (`Command`, `Event`, `CommandHandler`, `EventHandler`, `Device`, `Sensor`, `Actuator`) and the project-specific classes (`Dht11Sensor`, `Mq2Sensor`, `Led`, `Buzzer`, `ServoActuator`, `Cocina360Device`), along with their attributes, methods, and relationships. `Cocina360Device` also aggregates a `PubSubClient` (MQTT) connection used to deliver remote actuator commands, such as toggling the `ServoActuator`.
 
 ```plantuml
 @startuml
@@ -112,13 +112,33 @@ class Buzzer {
 }
 Buzzer -up-|> Actuator
 
+class ServoActuator {
+    private Servo servo
+    private bool isOn
+    private int pin
+    private int currentAngle
+    private int step
+    private unsigned long lastUpdate
+    private unsigned long lastToggleTime
+    +static const int TOGGLE_SERVO_COMMAND_ID = 40
+    +static const Command TOGGLE_SERVO_COMMAND
+    +ServoActuator(int pin, CommandHandler* commandHandler = nullptr)
+    +handle(Command command) override
+    +update() : void
+    +getState() : bool
+}
+ServoActuator -up-|> Actuator
+
 class Cocina360Device {
+    private WiFiClient espClient
+    private PubSubClient mqttClient
     private Dht11Sensor dhtSensor
     private Mq2Sensor gasSensor
     private Led redLed
     private Led yellowLed
     private Led greenLed
     private Buzzer buzzer
+    private ServoActuator servoDisipador
     private int tempSeverity
     private int gasSeverity
     private int warnTemperatureC
@@ -128,20 +148,28 @@ class Cocina360Device {
     -const char* ssid
     -const char* password
     -const String deviceId
+    -const String deviceApiKey
+    -const String edgeServerIp
     -const String urlConfigGet
     -const String urlTelemetryPost
+    -const char* mqttServer
+    -const int mqttPort
+    -String commandTopic
     -unsigned long lastFetchTime
     -const unsigned long FETCH_INTERVAL_MS
     -evaluateGlobalState() : void
     -connectWiFi() : void
+    -reconnectMQTT() : void
     -fetchRemoteThresholds() : void
     -sendTelemetry(int temp, float ppm, String status) : void
+    -{static} mqttCallback(char* topic, byte* payload, unsigned int length) : void
     +static const int PIN_DHT = 19
     +static const int PIN_MQ2 = 32
     +static const int PIN_RED = 25
     +static const int PIN_YELLOW = 26
     +static const int PIN_GREEN = 33
     +static const int PIN_BUZZER = 14
+    +static const int PIN_SERVO = 27
     +Cocina360Device()
     +begin() : void
     +update() : void
@@ -158,6 +186,8 @@ Cocina360Device *-- Dht11Sensor : instantiates
 Cocina360Device *-- Mq2Sensor : instantiates
 Cocina360Device *-- Led : instantiates (x3)
 Cocina360Device *-- Buzzer : instantiates
+Cocina360Device *-- ServoActuator : instantiates
+Cocina360Device --> "1" PubSubClient : mqttClient (receives remote commands)
 
 @enduml
 ```
