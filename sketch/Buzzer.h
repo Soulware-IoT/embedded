@@ -60,7 +60,7 @@ public:
      * @param commandHandler Pointer to a CommandHandler this actuator reports to (default: nullptr).
      */
     Buzzer(int pin, CommandHandler* commandHandler = nullptr);
-
+    void begin();
     /**
      * @brief Handles a PLAY_ALARM, STOP_ALARM, or PLAY_SUCCESS command by toggling playback state.
      *

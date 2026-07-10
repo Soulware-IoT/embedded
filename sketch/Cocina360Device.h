@@ -28,7 +28,6 @@
 #include "Dht11Sensor.h"
 #include "Mq2Sensor.h"
 #include "Led.h"
-#include "ServoActuator.h"
 #include "Buzzer.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -46,7 +45,6 @@ private:
     Led yellowLed; ///< Warning status indicator.
     Led greenLed; ///< Safe status indicator.
     Buzzer buzzer; ///< Acoustic alarm actuator.
-    ServoActuator servoDisipador; ///< Servo-driven heat dissipator actuator.
 
     int tempSeverity; ///< Latest severity level reported by the temperature sensor.
     int gasSeverity; ///< Latest severity level reported by the gas sensor.
@@ -58,14 +56,14 @@ private:
 
     const char* ssid = "prd29gat"; ///< WiFi network SSID used by connectWiFi().
     const char* password = "alltomorrows2004"; ///< WiFi network password used by connectWiFi().
-    const String deviceId = "23f8d970-40a2-49c8-8aa7-d05034199ff7"; ///< Unique identifier for this device on the backend.
-    const String deviceApiKey = "c893da9dc96904026fb6aaa5f7f82bfebd7e7802f228b99e6315722244a7c728"; ///< API key sent as the X-API-Key header on backend requests.
-    const String edgeServerIp = "http://192.168.247.196:5000"; ///< Base URL of the edge/backend server.
+    const String deviceId = "5b746bd7-b86e-44a9-92d6-c840723f7edf"; ///< Unique identifier for this device on the backend.
+    const String deviceApiKey = "cdce20bb5457b18761c0fe1f64aa4b31fd2ca508b0c1298bd175cef7da47e80e"; ///< API key sent as the X-API-Key header on backend requests.
+    const String edgeServerIp = "http://192.168.89.196:5000"; ///< Base URL of the edge/backend server.
     const String urlConfigGet = edgeServerIp + "/api/v1/config/" + deviceId; ///< Endpoint polled to fetch updated safety thresholds.
     const String urlTelemetryPost = edgeServerIp + "/api/v1/readings"; ///< Endpoint used to publish sensor telemetry.
 
     //Mosquitto
-    const char* mqttServer = "192.168.247.196"; ///< Hostname/IP of the MQTT broker.
+    const char* mqttServer = "192.168.89.196"; ///< Hostname/IP of the MQTT broker.
     const int mqttPort = 1883; ///< TCP port of the MQTT broker.
     String commandTopic; ///< MQTT topic this device subscribes to for remote commands.
     unsigned long lastFetchTime; ///< Timestamp (ms) of the last threshold synchronization.
@@ -111,7 +109,6 @@ public:
     static const int PIN_YELLOW = 26; ///< GPIO pin wired to the yellow LED.
     static const int PIN_GREEN = 33; ///< GPIO pin wired to the green LED.
     static const int PIN_BUZZER = 14; ///< GPIO pin wired to the buzzer.
-    static const int PIN_SERVO = 27; ///< GPIO pin wired to the servo-driven heat dissipator.
 
     /**
      * @brief Constructs the device, wiring each sensor/actuator to this instance and setting

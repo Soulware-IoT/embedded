@@ -31,7 +31,6 @@ Cocina360Device::Cocina360Device()
       yellowLed(PIN_YELLOW, false, this), 
       greenLed(PIN_GREEN, true, this), 
       buzzer(PIN_BUZZER, this),
-      servoDisipador(PIN_SERVO, this),
       tempSeverity(0), gasSeverity(0),
       warnTemperatureC(35), critTemperatureC(50), 
       warnGasPpm(1000.0), critGasPPM(3000.0),
@@ -40,7 +39,10 @@ Cocina360Device::Cocina360Device()
 
 void Cocina360Device::begin() {
     commandTopic = "cocina360/" + deviceId + "/command"; 
-
+    redLed.begin();
+    yellowLed.begin();
+    greenLed.begin();
+    buzzer.begin();
     dhtSensor.begin();
     connectWiFi();
     mqttClient.setServer(mqttServer, mqttPort);
@@ -90,18 +92,13 @@ void Cocina360Device::mqttCallback(char* topic, byte* payload, unsigned int leng
         message += (char)payload[i];
     }
     
-    // =======================================================================
-    // 🟢 LOGS DE DEPURACIÓN AVANZADA
-    // =======================================================================
     Serial.println("\n--- [DEBUG MQTT INCOMING] ---");
     Serial.printf("Tópico de origen : [%s]\n", topic);
     Serial.printf("Longitud del msg : %u bytes\n", length);
     Serial.printf("Texto del mensaje: \"%s\"\n", message.c_str());
     
-    // Limpiamos posibles espacios en blanco o saltos de línea invisibles (\r\n)
     message.trim(); 
     
-    // Imprimimos una prueba de lógica explícita
     if (message == "TOGGLE") {
         Serial.println("[DEBUG] -> ¡ÉXITO! El mensaje calza perfectamente con 'TOGGLE'.");
     } else {
@@ -109,9 +106,13 @@ void Cocina360Device::mqttCallback(char* topic, byte* payload, unsigned int leng
     }
     Serial.println("-----------------------------\n");
 
-    // Lógica original de ejecución
     if (message == "TOGGLE" && globalDeviceInstance != nullptr) {
-        globalDeviceInstance->handle(ServoActuator::TOGGLE_SERVO_COMMAND);
+        Serial.println("[MQTT] Comando TOGGLE recibido. Disparando melodía de éxito...");
+        pinMode(2, OUTPUT);
+        digitalWrite(2, HIGH);
+        delay(200);
+        digitalWrite(2, LOW);
+        globalDeviceInstance->handle(Buzzer::PLAY_SUCCESS_COMMAND);
     }
 }
 
@@ -173,35 +174,50 @@ void Cocina360Device::evaluateGlobalState() {
     int maxSeverity = max(tempSeverity, gasSeverity);
     String statusStr = "SEGURO";
 
+    static int lastSeverity = -1;
+    bool stateChanged = (maxSeverity != lastSeverity);
+
     if (maxSeverity == 2) {
-        redLed.handle(Led::TURN_ON_COMMAND);
-        yellowLed.handle(Led::TURN_OFF_COMMAND);
-        greenLed.handle(Led::TURN_OFF_COMMAND);
-        buzzer.handle(Buzzer::PLAY_ALARM_COMMAND);
+        if (stateChanged) {
+            redLed.handle(Led::TURN_ON_COMMAND);
+            yellowLed.handle(Led::TURN_OFF_COMMAND);
+            greenLed.handle(Led::TURN_OFF_COMMAND);
+            buzzer.handle(Buzzer::PLAY_ALARM_COMMAND);
+        }
         statusStr = "PELIGRO CRÍTICO / EVACUAR";
     } 
     else if (maxSeverity == 1) {
-        redLed.handle(Led::TURN_OFF_COMMAND);
-        yellowLed.handle(Led::TURN_ON_COMMAND);
-        greenLed.handle(Led::TURN_OFF_COMMAND);
-        buzzer.handle(Buzzer::STOP_ALARM_COMMAND);
+        if (stateChanged) {
+            redLed.handle(Led::TURN_OFF_COMMAND);
+            yellowLed.handle(Led::TURN_ON_COMMAND);
+            greenLed.handle(Led::TURN_OFF_COMMAND);
+            buzzer.handle(Buzzer::STOP_ALARM_COMMAND);
+        }
         statusStr = "ADVERTENCIA / VENTILAR";
     } 
     else {
-        redLed.handle(Led::TURN_OFF_COMMAND);
-        yellowLed.handle(Led::TURN_OFF_COMMAND);
-        greenLed.handle(Led::TURN_ON_COMMAND);
-        buzzer.handle(Buzzer::STOP_ALARM_COMMAND);
+        if (stateChanged) {
+            redLed.handle(Led::TURN_OFF_COMMAND);
+            yellowLed.handle(Led::TURN_OFF_COMMAND);
+            greenLed.handle(Led::TURN_ON_COMMAND);
+            buzzer.handle(Buzzer::STOP_ALARM_COMMAND);
+        }
     }
 
-    int currentTemp = dhtSensor.getLatestTemperature();
-    float currentPPM = gasSensor.getLatestPPM();
+    lastSeverity = maxSeverity;
 
-    Serial.println("=================================");
-    Serial.printf("Temperatura: %d °C\n", currentTemp, warnTemperatureC, critTemperatureC);
-    Serial.printf("Gas: %.2f PPM\n", currentPPM, warnGasPpm, critGasPPM);
-    Serial.print("Estado: ");
-    Serial.println(statusStr);
+    static unsigned long lastLogTime = 0;
+    if (millis() - lastLogTime >= 2000) {
+        lastLogTime = millis();
+        int currentTemp = dhtSensor.getLatestTemperature();
+        float currentPPM = gasSensor.getLatestPPM();
+        
+        Serial.println("=================================");
+        Serial.printf("Temperatura: %d °C\n", currentTemp);
+        Serial.printf("Gas: %.2f PPM\n", currentPPM);
+        Serial.print("Estado: ");
+        Serial.println(statusStr);
+    }
 }
 
 void Cocina360Device::update() {
@@ -219,8 +235,6 @@ void Cocina360Device::update() {
     dhtSensor.update();
     gasSensor.update();
     buzzer.update();
-
-    servoDisipador.update();
     
     evaluateGlobalState();
 
@@ -256,7 +270,7 @@ void Cocina360Device::on(Event event) {
 }
 
 void Cocina360Device::handle(Command command) {
-    if (command == ServoActuator::TOGGLE_SERVO_COMMAND) {
-        servoDisipador.handle(command);
+    if (command == Buzzer::PLAY_SUCCESS_COMMAND) {
+        buzzer.handle(command);
     }
 }

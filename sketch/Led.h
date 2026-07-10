@@ -47,7 +47,8 @@ public:
      * @param commandHandler Optional handler to receive commands (default: nullptr).
      */
     Led(int pin, bool initialState = false, CommandHandler* commandHandler = nullptr);
-
+    
+    void begin();
     /**
      * @brief Handles commands to control the LED state.
      * @param command The command to execute (e.g., TOGGLE_LED_COMMAND).

@@ -32,6 +32,9 @@ const Command Led::TURN_OFF_COMMAND = Command(TURN_OFF_COMMAND_ID);
 
 Led::Led(int pin, bool initialState, CommandHandler* commandHandler)
     : Actuator(pin, commandHandler), state(initialState) {
+}
+
+void Led::begin() {
     pinMode(pin, OUTPUT);
     digitalWrite(pin, state);
 }

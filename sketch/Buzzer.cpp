@@ -75,6 +75,9 @@ static const int NUM_SUCCESS_NOTES = sizeof(successMelody) / sizeof(successMelod
 Buzzer::Buzzer(int pin, CommandHandler* commandHandler)
     : Actuator(pin, commandHandler), isPlaying(false), loopMelody(false), noteStartTime(0),
       currentNote(0), activeMelody(nullptr), activeDurations(nullptr), activeNumNotes(0) {
+}
+
+void Buzzer::begin() {
     pinMode(pin, OUTPUT);
     noTone(pin);
 }
@@ -114,20 +117,22 @@ void Buzzer::update() {
 
     if (now - noteStartTime >= (duration * 1.1)) {
         noteStartTime = now;
+        
+        // 🟢 TRUCO ESP32: Forzar limpieza del hardware de audio antes de la nueva nota
+        noTone(pin); 
+
         if (activeMelody[currentNote] > 0) {
             tone(pin, activeMelody[currentNote], duration);
-        } else {
-            noTone(pin);
         }
+        
         currentNote++;
         if (currentNote >= activeNumNotes) {
             if (loopMelody) {
                 currentNote = 0;
             } else {
-                // Don't call stop() here: the last note was just started via tone() with its own
-                // duration and will stop itself. Calling noTone() now would cut it off early.
                 isPlaying = false;
                 currentNote = 0;
+                noTone(pin); // Silencio total al terminar
             }
         }
     }
